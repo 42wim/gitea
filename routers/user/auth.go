@@ -6,6 +6,8 @@
 package user
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -587,12 +589,31 @@ func handleOAuth2SignIn(u *models.User, gothUser goth.User, ctx *context.Context
 
 	if u == nil {
 		// no existing user is found, request attach or new account
-		err = ctx.Session.Set("linkAccountGothUser", gothUser)
+		loginSource, err := models.GetActiveOAuth2LoginSourceByName(gothUser.Provider)
 		if err != nil {
-			log.Error(fmt.Sprintf("Error setting session: %v", err))
+			ctx.ServerError("CreateUser", err)
 		}
-		ctx.Redirect(setting.AppSubURL + "/user/link_account")
-		return
+		// create random password
+		b := make([]byte, 16)
+		rand.Read(b)
+
+		u := &models.User{
+			Name:            gothUser.NickName,
+			FullName:        gothUser.Name,
+			Email:           gothUser.Email,
+			Passwd:          hex.EncodeToString(b),
+			IsActive:        true,
+			LoginType:       models.LoginOAuth2,
+			LoginSource:     loginSource.ID,
+			LoginName:       gothUser.UserID,
+			UseCustomAvatar: true,
+		}
+		if err := models.CreateUser(u); err != nil {
+			ctx.ServerError("CreateUser", err)
+			return
+		}
+		log.Trace("Account created: %s", u.Name)
+		ctx.Redirect(setting.AppSubURL + "/user/oauth2/" + gothUser.Provider)
 	}
 
 	// If this user is enrolled in 2FA, we can't sign the user in just yet.
