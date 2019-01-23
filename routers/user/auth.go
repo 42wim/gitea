@@ -977,7 +977,7 @@ func handleSignOut(ctx *context.Context) {
 // SignOut sign out from login status
 func SignOut(ctx *context.Context) {
 	handleSignOut(ctx)
-	ctx.Redirect(setting.AppSubURL + "/")
+	ctx.Redirect(setting.AppSubURL + "/user/login")
 }
 
 // SignUp render the register page
