@@ -72,7 +72,11 @@
 						<div class="menu">
 							<a class="item" href="{{$.Link}}?q={{$.Keyword}}&type={{$.ViewType}}&sort={{$.SortType}}&state={{$.State}}&labels={{.SelectLabels}}&milestone={{$.MilestoneID}}">{{.i18n.Tr "repo.issues.filter_assginee_no_select"}}</a>
 							{{range .Assignees}}
-								<a class="{{if eq $.AssigneeID .ID}}active selected{{end}} item" href="{{$.Link}}?type={{$.ViewType}}&sort={{$.SortType}}&state={{$.State}}&labels={{$.SelectLabels}}&milestone={{$.MilestoneID}}&assignee={{.ID}}"><img src="{{.RelAvatarLink}}"> {{.Name}}</a>
+								{{ $name := .Name }}
+								{{ if and ShowFullName (ne .FullName "") }}
+									{{ $name = .FullName }}
+								{{ end }}
+								<a class="{{if eq $.AssigneeID .ID}}active selected{{end}} item" href="{{$.Link}}?type={{$.ViewType}}&sort={{$.SortType}}&state={{$.State}}&labels={{$.SelectLabels}}&milestone={{$.MilestoneID}}&assignee={{.ID}}"><img src="{{.RelAvatarLink}}"> {{$name}}</a>
 							{{end}}
 						</div>
 					</div>
@@ -194,6 +198,10 @@
 
 		<div class="issue list">
 			{{range .Issues}}
+			{{ $posterName := .Poster.Name }}
+			{{ if and ShowFullName (ne .Poster.FullName "") }}
+				{{ $posterName = .Poster.FullName }}
+			{{ end }}
 				<li class="item">
 					{{if $.CanWriteIssuesOrPulls}}
 					<div class="ui checkbox issue-checkbox">
@@ -220,7 +228,7 @@
 
 					<p class="desc">
 						{{ $timeStr := TimeSinceUnix .GetLastEventTimestamp $.Lang }}
-						{{$.i18n.Tr .GetLastEventLabel $timeStr .Poster.HomeLink .Poster.Name | Safe}}
+						{{$.i18n.Tr .GetLastEventLabel $timeStr .Poster.HomeLink $posterName | Safe}}
 
 						{{$tasks := .GetTasks}}
 						{{if gt $tasks 0}}
@@ -239,7 +247,11 @@
 							<span{{if .IsOverdue}} class="overdue"{{end}}>{{.DeadlineUnix.FormatShort}}</span>
 						{{end}}
 						{{range .Assignees}}
-							<a class="ui right assignee poping up" href="{{.HomeLink}}" data-content="{{.Name}}" data-variation="inverted" data-position="left center">
+							{{ $name := .Name }}
+							{{ if and ShowFullName (ne .FullName "") }}
+								{{ $name = .FullName }}
+							{{ end }}
+							<a class="ui right assignee poping up" href="{{.HomeLink}}" data-content="{{$name}}" data-variation="inverted" data-position="left center">
 								<img class="ui avatar image" src="{{.RelAvatarLink}}">
 							</a>
 						{{end}}

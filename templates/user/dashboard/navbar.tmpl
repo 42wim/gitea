@@ -12,9 +12,13 @@
 						{{.i18n.Tr "home.switch_dashboard_context"}}
 					</div>
 					<div class="scrolling menu items">
+						{{ $userName := .SignedUser.Name }}
+						{{ if and ShowFullName (ne .SignedUser.FullName "") }}
+							{{ $userName = .SignedUser.FullName }}
+						{{ end }}
 						<a class="{{if eq .ContextUser.ID .SignedUser.ID}}active selected{{end}} item" href="{{AppSubUrl}}/{{if .PageIsIssues}}issues{{else if .PageIsPulls}}pulls{{end}}">
 							<img class="ui avatar image" src="{{.SignedUser.RelAvatarLink}}">
-							{{.SignedUser.Name}}
+							{{$userName}}
 						</a>
 						{{range .Orgs}}
 							<a class="{{if eq $.ContextUser.ID .ID}}active selected{{end}} item" href="{{AppSubUrl}}/org/{{.Name}}/{{if $.PageIsIssues}}issues{{else if $.PageIsPulls}}pulls{{else}}dashboard{{end}}">

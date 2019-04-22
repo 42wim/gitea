@@ -8,6 +8,11 @@
 		{{template "repo/issue/view_title" .}}
 	{{end}}
 
+	{{ $posterName := .Issue.Poster.Name }}
+	{{ if and ShowFullName (ne .Issue.Poster.FullName "") }}
+		{{ $posterName = .Issue.Poster.FullName }}
+	{{ end }}
+
 	{{ $createdStr:= TimeSinceUnix .Issue.CreatedUnix $.Lang }}
 	<div class="twelve wide column comment-list">
 		<ui class="ui comments">
@@ -17,7 +22,7 @@
 				</a>
 				<div class="content">
 					<div class="ui top attached header">
-						<span class="text grey"><a {{if gt .Issue.Poster.ID 0}}href="{{.Issue.Poster.HomeLink}}"{{end}}>{{.Issue.Poster.Name}}</a> {{.i18n.Tr "repo.issues.commented_at" .Issue.HashTag $createdStr | Safe}}</span>
+						<span class="text grey"><a {{if gt .Issue.Poster.ID 0}}href="{{.Issue.Poster.HomeLink}}"{{end}}>{{$posterName}}</a> {{.i18n.Tr "repo.issues.commented_at" .Issue.HashTag $createdStr | Safe}}</span>
 						{{if not $.Repository.IsArchived}}
 							<div class="ui right actions">
 								{{template "repo/issue/view_content/add_reaction" Dict "ctx" $ "ActionURL" (Printf "%s/issues/%d/reactions" $.RepoLink .Issue.Index) }}
