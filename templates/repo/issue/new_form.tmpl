@@ -109,10 +109,14 @@
 					<div class="filter menu" data-id="#assignee_ids">
 						<div class="no-select item">{{.i18n.Tr "repo.issues.new.clear_assignees"}}</div>
 						{{range .Assignees}}
+							{{ $name := .Name }}
+							{{ if and ShowFullName (ne .FullName "") }}
+								{{ $name = .FullName }}
+							{{ end }}
 							<a class="item" href="#" data-id="{{.ID}}" data-id-selector="#assignee_{{.ID}}">
 								<span class="octicon"></span>
 								<span class="text">
-									<img class="ui avatar image" src="{{.RelAvatarLink}}"> {{.Name}}
+									<img class="ui avatar image" src="{{.RelAvatarLink}}"> {{$name}}
 								</span>
 							</a>
 						{{end}}
@@ -123,8 +127,12 @@
 						{{.i18n.Tr "repo.issues.new.no_assignees"}}
 					</span>
 					{{range .Assignees}}
+						{{ $assigneeName := .Name }}
+						{{ if and ShowFullName (ne .FullName "") }}
+							{{ $assigneeName = .FullName }}
+						{{ end }}
 						<a style="padding: 5px;color:rgba(0, 0, 0, 0.87);" class="hide item" id="assignee_{{.ID}}" href="{{$.RepoLink}}/issues?assignee={{.ID}}">
-							<img class="ui avatar image" src="{{.RelAvatarLink}}" style="vertical-align: middle;">&nbsp;{{.Name}}
+							<img class="ui avatar image" src="{{.RelAvatarLink}}" style="vertical-align: middle;">&nbsp;{{$assigneeName}}
 						</a>
 					{{end}}
 				</div>

@@ -176,6 +176,7 @@ var (
 		ThemeColorMetaTag   string
 		MaxDisplayFileSize  int64
 		ShowUserEmail       bool
+		ShowFullName        bool
 		DefaultTheme        string
 		Themes              []string
 
@@ -894,6 +895,7 @@ func NewContext() {
 	ShowFooterTemplateLoadTime = Cfg.Section("other").Key("SHOW_FOOTER_TEMPLATE_LOAD_TIME").MustBool(true)
 
 	UI.ShowUserEmail = Cfg.Section("ui").Key("SHOW_USER_EMAIL").MustBool(true)
+	UI.ShowFullName = Cfg.Section("ui").Key("SHOW_FULL_NAME").MustBool(false)
 
 	HasRobotsTxt = com.IsFile(path.Join(CustomPath, "robots.txt"))
 

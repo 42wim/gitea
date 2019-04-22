@@ -1,4 +1,11 @@
 {{range .Feeds}}
+	{{ $titleName := .GetActFullName }}
+	{{ $titleNameValue := .ShortActUserName }}
+	{{ if and ShowFullName (ne "" .GetActFullName) }}
+		{{ $titleName = .ShortActUserName }}
+		{{ $titleNameValue = .GetActFullName }}
+	{{ end }}
+
 	<div class="news">
 		<div class="ui left">
 			<img class="ui avatar image" src="{{.GetActAvatar}}" alt="">
@@ -7,7 +14,7 @@
 			<div class="ui fourteen wide column">
 				<div class="{{if or (eq .GetOpType 5) (eq .GetOpType 18)}}push news{{end}}">
 					<p>
-						<a href="{{AppSubUrl}}/{{.GetActUserName}}" title="{{.GetActFullName}}">{{.ShortActUserName}}</a>
+						<a href="{{AppSubUrl}}/{{.GetActUserName}}" title="{{$titleName}}">{{$titleNameValue}}</a>
 						{{if eq .GetOpType 1}}
 							{{$.i18n.Tr "action.create_repo" .GetRepoLink .ShortRepoPath | Str2html}}
 						{{else if eq .GetOpType 2}}
