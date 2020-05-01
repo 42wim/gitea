@@ -279,9 +279,25 @@ func PrepareCompareDiff(
 		return true
 	}
 
-	diff, err := gitdiff.GetDiffRange(models.RepoPath(headUser.Name, headRepo.Name),
-		compareInfo.MergeBase, headCommitID, setting.Git.MaxGitDiffLines,
-		setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles)
+	gorepo := false
+	for _, t := range ctx.Repo.Repository.Topics {
+		if t == "go" {
+			gorepo = true
+			break
+		}
+	}
+
+	var diff *gitdiff.Diff
+
+	if gorepo {
+		diff, err = gitdiff.GetDiffRangeExclude(models.RepoPath(headUser.Name, headRepo.Name),
+			compareInfo.MergeBase, headCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles)
+	} else {
+		diff, err = gitdiff.GetDiffRange(models.RepoPath(headUser.Name, headRepo.Name),
+			compareInfo.MergeBase, headCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles)
+	}
 	if err != nil {
 		ctx.ServerError("GetDiffRange", err)
 		return false
