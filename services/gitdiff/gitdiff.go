@@ -650,6 +650,83 @@ func GetDiffRange(repoPath, beforeCommitID, afterCommitID string, maxLines, maxL
 	return GetDiffRangeWithWhitespaceBehavior(repoPath, beforeCommitID, afterCommitID, maxLines, maxLineCharacters, maxFiles, "")
 }
 
+// GetDiffRangeExclude builds a Diff between two commits of a repository.
+// passing the empty string as beforeCommitID returns a diff from the
+// parent commit.
+func GetDiffRangeExclude(repoPath, beforeCommitID, afterCommitID string, maxLines, maxLineCharacters, maxFiles int) (*Diff, error) {
+	return GetDiffRangeWithWhitespaceBehaviorExclude(repoPath, beforeCommitID, afterCommitID, maxLines, maxLineCharacters, maxFiles, "")
+}
+
+// GetDiffRangeWithWhitespaceBehavior builds a Diff between two commits of a repository.
+// Passing the empty string as beforeCommitID returns a diff from the parent commit.
+// The whitespaceBehavior is either an empty string or a git flag
+func GetDiffRangeWithWhitespaceBehaviorExclude(repoPath, beforeCommitID, afterCommitID string, maxLines, maxLineCharacters, maxFiles int, whitespaceBehavior string) (*Diff, error) {
+	gitRepo, err := git.OpenRepository(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	defer gitRepo.Close()
+
+	commit, err := gitRepo.GetCommit(afterCommitID)
+	if err != nil {
+		return nil, err
+	}
+
+	// FIXME: graceful: These commands should likely have a timeout
+	ctx, cancel := context.WithCancel(git.DefaultContext)
+	defer cancel()
+	var cmd *exec.Cmd
+	if len(beforeCommitID) == 0 && commit.ParentCount() == 0 {
+		cmd = exec.CommandContext(ctx, git.GitExecutable, "show", afterCommitID)
+	} else {
+		actualBeforeCommitID := beforeCommitID
+		if len(actualBeforeCommitID) == 0 {
+			parentCommit, _ := commit.Parent(0)
+			actualBeforeCommitID = parentCommit.ID.String()
+		}
+		diffArgs := []string{"diff", "-M"}
+		if len(whitespaceBehavior) != 0 {
+			diffArgs = append(diffArgs, whitespaceBehavior)
+		}
+		diffArgs = append(diffArgs, actualBeforeCommitID)
+		diffArgs = append(diffArgs, afterCommitID)
+		diffArgs = append(diffArgs, ":(exclude)vendor")
+		cmd = exec.CommandContext(ctx, git.GitExecutable, diffArgs...)
+		beforeCommitID = actualBeforeCommitID
+	}
+	cmd.Dir = repoPath
+	cmd.Stderr = os.Stderr
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("StdoutPipe: %v", err)
+	}
+
+	if err = cmd.Start(); err != nil {
+		return nil, fmt.Errorf("Start: %v", err)
+	}
+
+	pid := process.GetManager().Add(fmt.Sprintf("GetDiffRange [repo_path: %s]", repoPath), cancel)
+	defer process.GetManager().Remove(pid)
+
+	diff, err := ParsePatch(maxLines, maxLineCharacters, maxFiles, stdout)
+	if err != nil {
+		return nil, fmt.Errorf("ParsePatch: %v", err)
+	}
+	for _, diffFile := range diff.Files {
+		tailSection := diffFile.GetTailSection(gitRepo, beforeCommitID, afterCommitID)
+		if tailSection != nil {
+			diffFile.Sections = append(diffFile.Sections, tailSection)
+		}
+	}
+
+	if err = cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("Wait: %v", err)
+	}
+
+	return diff, nil
+}
+
 // GetDiffRangeWithWhitespaceBehavior builds a Diff between two commits of a repository.
 // Passing the empty string as beforeCommitID returns a diff from the parent commit.
 // The whitespaceBehavior is either an empty string or a git flag

@@ -608,10 +608,25 @@ func ViewPullFiles(ctx *context.Context) {
 	ctx.Data["Reponame"] = ctx.Repo.Repository.Name
 	ctx.Data["AfterCommitID"] = endCommitID
 
-	diff, err := gitdiff.GetDiffRangeWithWhitespaceBehavior(diffRepoPath,
-		startCommitID, endCommitID, setting.Git.MaxGitDiffLines,
-		setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles,
-		whitespaceFlags[ctx.Data["WhitespaceBehavior"].(string)])
+	gorepo := false
+	for _, t := range ctx.Repo.Repository.Topics {
+		if t == "go" {
+			gorepo = true
+			break
+		}
+	}
+	var diff *gitdiff.Diff
+	if gorepo {
+		diff, err = gitdiff.GetDiffRangeWithWhitespaceBehaviorExclude(diffRepoPath,
+			startCommitID, endCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles,
+			whitespaceFlags[ctx.Data["WhitespaceBehavior"].(string)])
+	} else {
+		diff, err = gitdiff.GetDiffRangeWithWhitespaceBehavior(diffRepoPath,
+			startCommitID, endCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles,
+			whitespaceFlags[ctx.Data["WhitespaceBehavior"].(string)])
+	}
 	if err != nil {
 		ctx.ServerError("GetDiffRangeWithWhitespaceBehavior", err)
 		return
