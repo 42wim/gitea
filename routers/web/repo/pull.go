@@ -45,16 +45,14 @@ const (
 	pullRequestTemplateKey = "PullRequestTemplate"
 )
 
-var (
-	pullRequestTemplateCandidates = []string{
-		"PULL_REQUEST_TEMPLATE.md",
-		"pull_request_template.md",
-		".gitea/PULL_REQUEST_TEMPLATE.md",
-		".gitea/pull_request_template.md",
-		".github/PULL_REQUEST_TEMPLATE.md",
-		".github/pull_request_template.md",
-	}
-)
+var pullRequestTemplateCandidates = []string{
+	"PULL_REQUEST_TEMPLATE.md",
+	"pull_request_template.md",
+	".gitea/PULL_REQUEST_TEMPLATE.md",
+	".gitea/pull_request_template.md",
+	".github/PULL_REQUEST_TEMPLATE.md",
+	".github/pull_request_template.md",
+}
 
 func getRepository(ctx *context.Context, repoID int64) *models.Repository {
 	repo, err := models.GetRepositoryByID(repoID)
@@ -122,7 +120,7 @@ func getForkRepository(ctx *context.Context) *models.Repository {
 		}
 	}
 
-	var traverseParentRepo = forkRepo
+	traverseParentRepo := forkRepo
 	var err error
 	for {
 		if ctx.User.ID == traverseParentRepo.OwnerID {
@@ -193,7 +191,7 @@ func ForkPost(ctx *context.Context) {
 	}
 
 	var err error
-	var traverseParentRepo = forkRepo
+	traverseParentRepo := forkRepo
 	for {
 		if ctxUser.ID == traverseParentRepo.OwnerID {
 			ctx.RenderWithErr(ctx.Tr("repo.settings.new_owner_has_same_repo"), tplFork, &form)
@@ -623,10 +621,25 @@ func ViewPullFiles(ctx *context.Context) {
 	ctx.Data["Reponame"] = ctx.Repo.Repository.Name
 	ctx.Data["AfterCommitID"] = endCommitID
 
-	diff, err := gitdiff.GetDiffRangeWithWhitespaceBehavior(diffRepoPath,
-		startCommitID, endCommitID, setting.Git.MaxGitDiffLines,
-		setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles,
-		gitdiff.GetWhitespaceFlag(ctx.Data["WhitespaceBehavior"].(string)))
+	gorepo := false
+	for _, t := range ctx.Repo.Repository.Topics {
+		if t == "go" {
+			gorepo = true
+			break
+		}
+	}
+	var diff *gitdiff.Diff
+	if gorepo {
+		diff, err = gitdiff.GetDiffRangeWithWhitespaceBehaviorExclude(diffRepoPath,
+			startCommitID, endCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles,
+			gitdiff.GetWhitespaceFlag(ctx.Data["WhitespaceBehavior"].(string)))
+	} else {
+		diff, err = gitdiff.GetDiffRangeWithWhitespaceBehavior(diffRepoPath,
+			startCommitID, endCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles,
+			gitdiff.GetWhitespaceFlag(ctx.Data["WhitespaceBehavior"].(string)))
+	}
 	if err != nil {
 		ctx.ServerError("GetDiffRangeWithWhitespaceBehavior", err)
 		return
@@ -985,7 +998,6 @@ func MergePullRequest(ctx *context.Context) {
 }
 
 func stopTimerIfAvailable(user *models.User, issue *models.Issue) error {
-
 	if models.StopwatchExists(user.ID, issue.ID) {
 		if err := models.CreateOrStopIssueStopwatch(user, issue); err != nil {
 			return err
