@@ -413,7 +413,6 @@ func PrepareCompareDiff(
 	compareInfo *git.CompareInfo,
 	baseBranch, headBranch string,
 	whitespaceBehavior string) bool {
-
 	var (
 		repo  = ctx.Repo.Repository
 		err   error
@@ -440,9 +439,25 @@ func PrepareCompareDiff(
 		return true
 	}
 
-	diff, err := gitdiff.GetDiffRangeWithWhitespaceBehavior(models.RepoPath(headUser.Name, headRepo.Name),
-		compareInfo.MergeBase, headCommitID, setting.Git.MaxGitDiffLines,
-		setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles, whitespaceBehavior)
+	gorepo := false
+	for _, t := range ctx.Repo.Repository.Topics {
+		if t == "go" {
+			gorepo = true
+			break
+		}
+	}
+
+	var diff *gitdiff.Diff
+
+	if gorepo {
+		diff, err = gitdiff.GetDiffRangeWithWhitespaceBehaviorExclude(models.RepoPath(headUser.Name, headRepo.Name),
+			compareInfo.MergeBase, headCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles, whitespaceBehavior)
+	} else {
+		diff, err = gitdiff.GetDiffRangeWithWhitespaceBehavior(models.RepoPath(headUser.Name, headRepo.Name),
+			compareInfo.MergeBase, headCommitID, setting.Git.MaxGitDiffLines,
+			setting.Git.MaxGitDiffLineCharacters, setting.Git.MaxGitDiffFiles, whitespaceBehavior)
+	}
 	if err != nil {
 		ctx.ServerError("GetDiffRangeWithWhitespaceBehavior", err)
 		return false
@@ -638,7 +653,8 @@ func ExcerptBlob(ctx *context.Context) {
 				RightIdx:      idxRight,
 				LeftHunkSize:  leftHunkSize,
 				RightHunkSize: rightHunkSize,
-			}}
+			},
+		}
 		if direction == "up" {
 			section.Lines = append([]*gitdiff.DiffLine{lineSection}, section.Lines...)
 		} else if direction == "down" {
