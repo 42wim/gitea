@@ -337,7 +337,10 @@ func GetFeeds(opts GetFeedsOptions) ([]*Action, error) {
 
 	actions := make([]*Action, 0, setting.UI.FeedPagingNum)
 
-	if err := db.GetEngine(db.DefaultContext).Limit(setting.UI.FeedPagingNum).Desc("created_unix").Where(cond).Find(&actions); err != nil {
+	sqlCond, _ := builder.ToBoundSQL(cond)
+	sqlCond = strings.ReplaceAll(sqlCond, "visibility IN (private,limited)", "visibility IN (2,1)")
+	sqlCond = strings.ReplaceAll(sqlCond, "visibility IN (private)", "visibility IN (2)")
+	if err := db.GetEngine(db.DefaultContext).SQL("SELECT `id`, `user_id`, `op_type`, `act_user_id`, `repo_id`, `comment_id`, `is_deleted`, `ref_name`, `is_private`, `content`, `created_unix` FROM `action` use INDEX(IDX_action_created_unix) WHERE " + sqlCond + " ORDER BY `created_unix` DESC LIMIT " + strconv.Itoa(setting.UI.FeedPagingNum)).Find(&actions); err != nil {
 		return nil, fmt.Errorf("Find: %v", err)
 	}
 
