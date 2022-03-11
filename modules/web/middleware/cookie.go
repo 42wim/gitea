@@ -8,6 +8,7 @@ package middleware
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"code.gitea.io/gitea/modules/setting"
@@ -78,6 +79,9 @@ func NewCookie(name, value string, maxAge int) *http.Cookie {
 
 // SetRedirectToCookie convenience function to set the RedirectTo cookie consistently
 func SetRedirectToCookie(resp http.ResponseWriter, value string) {
+	if strings.Contains(value, "favicon.ico") {
+		value = "/"
+	}
 	SetCookie(resp, "redirect_to", value,
 		0,
 		setting.AppSubURL,
