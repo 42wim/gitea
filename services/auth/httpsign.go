@@ -53,13 +53,12 @@ func (h *HTTPSign) Verify(req *http.Request, w http.ResponseWriter, store DataSt
 	}
 
 	var (
-		u       *user_model.User
 		validpk *asymkey_model.PublicKey
 		err     error
 	)
 
-	// Handle SSH certificates
 	if len(req.Header.Get("X-Ssh-Certificate")) != 0 {
+		// Handle Signature signed by SSH certificates
 		if len(setting.SSH.TrustedUserCAKeys) == 0 {
 			return nil
 		}
@@ -71,13 +70,8 @@ func (h *HTTPSign) Verify(req *http.Request, w http.ResponseWriter, store DataSt
 			return nil
 		}
 	} else {
-		keyID, err := GetKeyID(req)
-		if err != nil {
-			log.Debug("GetKeyID failed: %v", err)
-			return nil
-		}
-
-		validpk, err = VerifyPubKey(req, keyID)
+		// Handle Signature signed by Public Key
+		validpk, err = VerifyPubKey(req)
 		if err != nil {
 			log.Debug("VerifyPubKey on request from %s: failed: %v", req.RemoteAddr, err)
 			log.Warn("Failed authentication attempt from %s", req.RemoteAddr)
@@ -85,7 +79,7 @@ func (h *HTTPSign) Verify(req *http.Request, w http.ResponseWriter, store DataSt
 		}
 	}
 
-	u, err = user_model.GetUserByID(validpk.OwnerID)
+	u, err := user_model.GetUserByID(validpk.OwnerID)
 	if err != nil {
 		log.Error("GetUserByID:  %v", err)
 		return nil
@@ -98,7 +92,14 @@ func (h *HTTPSign) Verify(req *http.Request, w http.ResponseWriter, store DataSt
 	return u
 }
 
-func VerifyPubKey(r *http.Request, keyID string) (*asymkey_model.PublicKey, error) {
+func VerifyPubKey(r *http.Request) (*asymkey_model.PublicKey, error) {
+	verifier, err := httpsig.NewVerifier(r)
+	if err != nil {
+		return nil, fmt.Errorf("httpsig.NewVerifier failed: %s", err)
+	}
+
+	keyID := verifier.KeyId()
+
 	validpk, err := asymkey_model.SearchPublicKey(0, keyID)
 	if err != nil {
 		return nil, err
@@ -106,6 +107,15 @@ func VerifyPubKey(r *http.Request, keyID string) (*asymkey_model.PublicKey, erro
 
 	if len(validpk) == 0 {
 		return nil, fmt.Errorf("no public key found for keyid %s", keyID)
+	}
+
+	pk, err := ssh.ParsePublicKey([]byte(validpk[0].Content))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := doVerify(verifier, []ssh.PublicKey{pk}); err != nil {
+		return nil, err
 	}
 
 	return validpk[0], nil
@@ -197,19 +207,20 @@ func doVerify(verifier httpsig.Verifier, publickeys []ssh.PublicKey) error {
 	for _, pubkey := range publickeys {
 		cryptoPubkey := pubkey.(ssh.CryptoPublicKey).CryptoPublicKey()
 
-		var algo httpsig.Algorithm
+		var algos []httpsig.Algorithm
 
 		switch {
 		case strings.HasPrefix(pubkey.Type(), "ssh-ed25519"):
-			algo = httpsig.ED25519
+			algos = []httpsig.Algorithm{httpsig.ED25519}
 		case strings.HasPrefix(pubkey.Type(), "ssh-rsa"):
-			algo = httpsig.RSA_SHA1
+			algos = []httpsig.Algorithm{httpsig.RSA_SHA1, httpsig.RSA_SHA256, httpsig.RSA_SHA512}
 		}
-
-		err := verifier.Verify(cryptoPubkey, algo)
-		if err == nil {
-			verified = true
-			break
+		for _, algo := range algos {
+			err := verifier.Verify(cryptoPubkey, algo)
+			if err == nil {
+				verified = true
+				break
+			}
 		}
 	}
 
@@ -218,14 +229,4 @@ func doVerify(verifier httpsig.Verifier, publickeys []ssh.PublicKey) error {
 	}
 
 	return errors.New("verification failed")
-}
-
-// GetKeyID returns the keyid from the httpsignature or an error if doesn't exist
-func GetKeyID(r *http.Request) (string, error) {
-	verifier, err := httpsig.NewVerifier(r)
-	if err != nil {
-		return "", fmt.Errorf("httpsig.NewVerifier failed: %s", err)
-	}
-
-	return verifier.KeyId(), nil
 }
