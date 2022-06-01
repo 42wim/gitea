@@ -109,7 +109,7 @@ func VerifyPubKey(r *http.Request) (*asymkey_model.PublicKey, error) {
 		return nil, fmt.Errorf("no public key found for keyid %s", keyID)
 	}
 
-	pk, err := ssh.ParsePublicKey([]byte(validpk[0].Content))
+	pk, _, _, _, err := ssh.ParseAuthorizedKey([]byte(validpk[0].Content))
 	if err != nil {
 		return nil, err
 	}
